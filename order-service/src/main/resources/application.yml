@@ -1,0 +1,72 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: order-service
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            loggerLevel: FULL
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+
+resilience4j:
+  circuitbreaker:                       # 서킷 브레이커 설정
+    instances:
+      inventoryService:                 # 인스턴스 이름
+        slidingWindowSize: 10           # 실패/성공 여부를 계산하기 위한 요청 수
+        slidingWindowType: COUNT_BASED  # 슬라이딩 윈도우 타입 (COUNT OR TIME)
+        permittedNumberOfCallsInHalfOpenState: 3  # Half-Open 상태에서 허용되는 호출 수
+        minimumNumberOfCalls: 5         # 실패율 계산을 위한 최소 호출 수
+        waitDurationInOpenState: 5s     # Open 상태에서 Half-Open 상태로 전환되기 전까지 대기 시간
+        failureRateThreshold: 50        # 실패율 임계값(%), 이 값을 넘으면 Open
+        eventConsumerBufferSize: 10     # 이벤트 버퍼 크기
+  retry:                                # 재시도 설정
+    instances:
+      inventoryService:
+        maxAttempts: 3                  # 최대 재시도 횟수
+        waitDuration: 1s                # 재시도 사이의 대기시간
+        enableExponentialBackoff: true  # 지수 백오프 활성화 여부
+        exponentialBackoffMultiplier: 2 # 지수 백오프 승 수 (1, 2, 4, ...)
+  ratelimiter:                          # 속도 제한 설정
+    instances:
+      inventoryService:
+        limitForPeriod: 10              # 주기당 허용되는 요청 수
+        limitRefreshPeriod: 1s          # 제한이 리프레시되는 주기
+        timeoutDuration: 3s             # 요청이 차단될 때 대기하는 최대 시간
+  bulkhead:                             # 동시성 제한 설정
+    instances:
+      inventoryService:
+        maxConcurrentCalls: 10          # 동시에 처리할 수 있는 최대 호출 수
+        maxWaitDuration: 2s             # 실행 대기열에서 대기하는 최대 시간
+
+management:
+  endpoints:
+    web:
+      cors:
+        allowed-origins: "http://localhost:5173"
+        allowed-methods: "*"
+        allowed-headers: "*"
+      exposure:
+        include: "health, info, metrics, prometheus"
+  endpoint:
+    health:
+      show-details: always
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+    retries:
+      enabled: true
+    bulkheads:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
